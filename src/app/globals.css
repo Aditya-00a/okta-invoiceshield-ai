@@ -1,26 +1,49 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #f7f2e8;
+  --foreground: #151515;
+  --okta-carbon: #151515;
+  --okta-cobalt: #00297a;
+  --okta-ocean: #006f8f;
+  --okta-sand: #e9dcc4;
+  --okta-cream: #f7f2e8;
+  --okta-snow: #fffdfa;
+  --okta-seafoam: #dff4ef;
+  --okta-turquoise: #19c4ad;
+  --okta-warning: #b76e00;
+  --okta-danger: #b42318;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --font-sans: "Geist", "Geist Fallback", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Geist Mono", "Geist Mono Fallback", ui-monospace, monospace;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans);
+}
+
+button,
+a {
+  transition:
+    background-color 180ms ease,
+    border-color 180ms ease,
+    color 180ms ease,
+    transform 180ms ease,
+    box-shadow 180ms ease;
+}
+
+button:focus-visible,
+a:focus-visible {
+  outline: 3px solid rgba(25, 196, 173, 0.45);
+  outline-offset: 3px;
+}
+
+::selection {
+  background: rgba(25, 196, 173, 0.32);
 }
