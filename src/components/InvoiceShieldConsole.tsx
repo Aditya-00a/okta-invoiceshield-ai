@@ -30,15 +30,23 @@ import {
   XCircle,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import { useState } from "react";
+import { useState, type ChangeEvent } from "react";
 
 type MetricTone = "green" | "red" | "orange" | "blue";
 type AuditStatus = "Success" | "Pending" | "Blocked";
 type AuditRisk = "Low" | "Medium" | "High";
 type MatrixState = "allow" | "review" | "block";
+type NavLabel =
+  | "Overview"
+  | "Agents"
+  | "Access"
+  | "Policies"
+  | "Approvals"
+  | "Audit Trail"
+  | "Settings";
 
 const navItems: Array<{
-  label: string;
+  label: NavLabel;
   icon: LucideIcon;
   badge?: string;
 }> = [
@@ -381,7 +389,7 @@ function RiskDot({ risk }: { risk: AuditRisk }) {
 }
 
 export function InvoiceShieldConsole() {
-  const [activeNav, setActiveNav] = useState("Overview");
+  const [activeNav, setActiveNav] = useState<NavLabel>("Overview");
   const [approvalState, setApprovalState] = useState("Review");
   const [searchTerm, setSearchTerm] = useState("");
   const [timeRange, setTimeRange] = useState("Last 24 hours");
@@ -403,8 +411,196 @@ export function InvoiceShieldConsole() {
     return row.status === eventFilter;
   });
 
-  function openPanel(label: string, detail: string) {
+  function announceAction(label: string, detail: string) {
     setNotice(`${label}: ${detail}`);
+  }
+
+  function handleOverviewNav() {
+    setActiveNav("Overview");
+    setEventFilter("All Events");
+    announceAction(
+      "Overview",
+      "Agent posture is stable with 3 approvals requiring review.",
+    );
+  }
+
+  function handleAgentsNav() {
+    setActiveNav("Agents");
+    announceAction(
+      "Agents",
+      "Showing registered agents, owners, scopes, and certification state.",
+    );
+  }
+
+  function handleAccessNav() {
+    setActiveNav("Access");
+    announceAction(
+      "Access",
+      "Showing delegated access posture and scoped credential activity.",
+    );
+  }
+
+  function handlePoliciesNav() {
+    setActiveNav("Policies");
+    announceAction(
+      "Policies",
+      "Policy matrix is ready for strict, standard, and permissive mode review.",
+    );
+  }
+
+  function handleApprovalsNav() {
+    setActiveNav("Approvals");
+    announceAction(
+      "Approvals",
+      "3 access requests are queued for review by the security team.",
+    );
+  }
+
+  function handleAuditTrailNav() {
+    setActiveNav("Audit Trail");
+    setEventFilter("All Events");
+    announceAction(
+      "Audit Trail",
+      "Full evidence trail loaded for SIEM, audit, and incident response.",
+    );
+  }
+
+  function handleSettingsNav() {
+    setActiveNav("Settings");
+    setProfileMenuOpen(true);
+    announceAction(
+      "Settings",
+      "Profile and session settings are available for Alex Smith.",
+    );
+  }
+
+  const navActions: Record<NavLabel, () => void> = {
+    Overview: handleOverviewNav,
+    Agents: handleAgentsNav,
+    Access: handleAccessNav,
+    Policies: handlePoliciesNav,
+    Approvals: handleApprovalsNav,
+    "Audit Trail": handleAuditTrailNav,
+    Settings: handleSettingsNav,
+  };
+
+  function handleSearchChange(event: ChangeEvent<HTMLInputElement>) {
+    const value = event.target.value;
+    setSearchTerm(value);
+    setActiveNav("Overview");
+    setNotice(
+      value.trim()
+        ? `Search active: ${value}`
+        : "Search cleared. Showing the full agent ecosystem.",
+    );
+  }
+
+  function handleTimeRangeChange(event: ChangeEvent<HTMLSelectElement>) {
+    const value = event.target.value;
+    setTimeRange(value);
+    announceAction("Time range", `Dashboard metrics filtered to ${value}.`);
+  }
+
+  function handleAuditFilterChange(event: ChangeEvent<HTMLSelectElement>) {
+    const value = event.target.value;
+    setEventFilter(value);
+    setActiveNav("Audit Trail");
+    announceAction("Audit filter", `Audit trail filtered to ${value}.`);
+  }
+
+  function handleNotificationsClick() {
+    setActiveNav("Approvals");
+    announceAction(
+      "Notifications",
+      "3 pending approvals and 2 shadow agent alerts are waiting.",
+    );
+  }
+
+  function handleHelpClick() {
+    announceAction(
+      "Help",
+      "Use approvals to decide agent access, investigate shadow agents, and export the audit trail.",
+    );
+  }
+
+  function handleProfileClick() {
+    const nextOpen = !profileMenuOpen;
+    setProfileMenuOpen(nextOpen);
+    announceAction(
+      "Profile",
+      nextOpen
+        ? "Profile menu opened for Alex Smith."
+        : "Profile menu closed.",
+    );
+  }
+
+  function handleViewFullProfileClick() {
+    setActiveNav("Agents");
+    announceAction(
+      "Agent profile",
+      "ResearchAgent-01 profile loaded with owner, scopes, and certification state.",
+    );
+  }
+
+  function handleViewRiskDetailsClick() {
+    setActiveNav("Access");
+    setEventFilter("High Risk");
+    announceAction(
+      "Risk details",
+      "High risk is driven by after-hours Snowflake access, new app connection, and permissive policy mode.",
+    );
+  }
+
+  function handleDenyApprovalClick() {
+    setActiveNav("Approvals");
+    setApprovalState("Denied");
+    announceAction(
+      "Approval denied",
+      "MarketingAgent-02 access request was denied and logged.",
+    );
+  }
+
+  function handleReviewApprovalClick() {
+    setActiveNav("Approvals");
+    setApprovalState("Under Review");
+    announceAction(
+      "Approval review",
+      "MarketingAgent-02 has been routed to a human reviewer.",
+    );
+  }
+
+  function handleInvestigateShadowAgentClick() {
+    setActiveNav("Audit Trail");
+    setEventFilter("High Risk");
+    announceAction(
+      "Shadow investigation",
+      "Unknown access source 203.0.113.42 was added to the investigation queue.",
+    );
+  }
+
+  function handleManagePoliciesClick() {
+    setActiveNav("Policies");
+    announceAction(
+      "Policy matrix",
+      "Policy editor opened for Data Access, External Apps, Write / Modify, and Admin Actions.",
+    );
+  }
+
+  function handleViewAllInsightsClick() {
+    setActiveNav("Overview");
+    announceAction(
+      "Security insights",
+      "All insights view opened with unusual access, app connection, and policy update events.",
+    );
+  }
+
+  function handleViewFullAuditTrailClick() {
+    setActiveNav("Audit Trail");
+    setEventFilter("All Events");
+    announceAction(
+      "Audit trail",
+      `${auditRows.length} events are ready for export or SIEM handoff.`,
+    );
   }
 
   return (
@@ -421,13 +617,8 @@ export function InvoiceShieldConsole() {
                 <button
                   key={item.label}
                   type="button"
-                  onClick={() => {
-                    setActiveNav(item.label);
-                    openPanel(
-                      item.label,
-                      `${item.label} workspace is now selected in the console.`,
-                    );
-                  }}
+                  onClick={navActions[item.label]}
+                  aria-label={item.label}
                   className={`flex h-14 w-full items-center justify-between rounded-xl px-4 text-sm font-semibold ${
                     active
                       ? "bg-[#eef3ff] text-[#0b57ff]"
@@ -439,7 +630,10 @@ export function InvoiceShieldConsole() {
                     {item.label}
                   </span>
                   {item.badge ? (
-                    <span className="flex h-7 min-w-7 items-center justify-center rounded-full bg-[#e6ecff] px-2 text-[#0b57ff]">
+                    <span
+                      aria-hidden
+                      className="flex h-7 min-w-7 items-center justify-center rounded-full bg-[#e6ecff] px-2 text-[#0b57ff]"
+                    >
                       {item.badge}
                     </span>
                   ) : null}
@@ -499,14 +693,7 @@ export function InvoiceShieldConsole() {
                 <Search className="h-5 w-5" aria-hidden />
                 <input
                   value={searchTerm}
-                  onChange={(event) => {
-                    setSearchTerm(event.target.value);
-                    setNotice(
-                      event.target.value.trim()
-                        ? `Search active: ${event.target.value}`
-                        : "Search cleared. Showing the full agent ecosystem.",
-                    );
-                  }}
+                  onChange={handleSearchChange}
                   aria-label="Search agents, apps, policies"
                   placeholder="Search agents, apps, policies..."
                   className="min-w-0 flex-1 bg-transparent text-sm font-medium text-[#061044] outline-none placeholder:text-[#7a86a3]"
@@ -520,40 +707,25 @@ export function InvoiceShieldConsole() {
             <div className="flex items-center justify-between gap-4 xl:justify-end">
               <button
                 type="button"
-                onClick={() =>
-                  openPanel(
-                    "Notifications",
-                    "3 pending approvals and 2 shadow agent alerts are waiting.",
-                  )
-                }
+                onClick={handleNotificationsClick}
+                aria-label="Open notifications"
                 className="rounded-full p-2 text-[#53617f] hover:bg-[#eef3ff] hover:text-[#0b57ff]"
               >
-                <Bell className="h-5 w-5" aria-label="Notifications" />
+                <Bell className="h-5 w-5" aria-hidden />
               </button>
               <button
                 type="button"
-                onClick={() =>
-                  openPanel(
-                    "Help",
-                    "Review approvals, investigate shadow agents, and export the audit trail from this console.",
-                  )
-                }
+                onClick={handleHelpClick}
+                aria-label="Open help"
                 className="rounded-full p-2 text-[#53617f] hover:bg-[#eef3ff] hover:text-[#0b57ff]"
               >
-                <CircleHelp className="h-5 w-5" aria-label="Help" />
+                <CircleHelp className="h-5 w-5" aria-hidden />
               </button>
               <div className="relative">
                 <button
                   type="button"
-                  onClick={() => {
-                    setProfileMenuOpen((current) => !current);
-                    openPanel(
-                      "Profile",
-                      profileMenuOpen
-                        ? "Profile menu closed."
-                        : "Profile menu opened for Alex Smith.",
-                    );
-                  }}
+                  onClick={handleProfileClick}
+                  aria-label="Toggle Alex Smith profile menu"
                   className="flex items-center gap-3"
                 >
                   <span className="flex h-11 w-11 items-center justify-center rounded-full bg-[#102a83] text-sm font-bold text-white">
@@ -595,13 +767,7 @@ export function InvoiceShieldConsole() {
                   <span className="sr-only">Time range</span>
                   <select
                     value={timeRange}
-                    onChange={(event) => {
-                      setTimeRange(event.target.value);
-                      openPanel(
-                        "Time range",
-                        `Dashboard metrics filtered to ${event.target.value}.`,
-                      );
-                    }}
+                    onChange={handleTimeRangeChange}
                     className="appearance-none bg-transparent pr-7 text-sm font-semibold outline-none"
                   >
                     <option>Last 24 hours</option>
@@ -738,12 +904,7 @@ export function InvoiceShieldConsole() {
                 <div className="mt-6 border-t border-[#dfe7f5] pt-4">
                   <button
                     type="button"
-                    onClick={() =>
-                      openPanel(
-                        "Agent profile",
-                        "ResearchAgent-01 profile loaded with owner, scopes, and certification state.",
-                      )
-                    }
+                    onClick={handleViewFullProfileClick}
                     className="inline-flex items-center gap-2 text-sm font-semibold text-[#0b57ff]"
                   >
                     View full profile
@@ -764,12 +925,7 @@ export function InvoiceShieldConsole() {
                 <div className="mt-7 border-t border-[#dfe7f5] pt-4">
                   <button
                     type="button"
-                    onClick={() =>
-                      openPanel(
-                        "Risk details",
-                        "High risk is driven by after-hours Snowflake access, new app connection, and permissive policy mode.",
-                      )
-                    }
+                    onClick={handleViewRiskDetailsClick}
                     className="inline-flex items-center gap-2 text-sm font-semibold text-[#0b57ff]"
                   >
                     View risk details
@@ -820,26 +976,14 @@ export function InvoiceShieldConsole() {
                 <div className="mt-6 grid grid-cols-2 gap-3">
                   <button
                     type="button"
-                    onClick={() => {
-                      setApprovalState("Denied");
-                      openPanel(
-                        "Approval denied",
-                        "MarketingAgent-02 access request was denied and logged.",
-                      );
-                    }}
+                    onClick={handleDenyApprovalClick}
                     className="h-11 rounded-lg border border-[#b8c4dc] bg-white text-sm font-semibold text-[#061044] hover:border-[#e31937] hover:text-[#e31937]"
                   >
                     Deny
                   </button>
                   <button
                     type="button"
-                    onClick={() => {
-                      setApprovalState("Under Review");
-                      openPanel(
-                        "Approval review",
-                        "MarketingAgent-02 has been routed for access review.",
-                      );
-                    }}
+                    onClick={handleReviewApprovalClick}
                     className="h-11 rounded-lg bg-[#0b57ff] text-sm font-semibold text-white shadow-[0_12px_24px_rgba(11,87,255,0.28)] hover:bg-[#003fcc]"
                   >
                     Review
@@ -904,12 +1048,7 @@ export function InvoiceShieldConsole() {
                 <div className="mt-5 border-t border-[#dfe7f5] pt-4">
                   <button
                     type="button"
-                    onClick={() =>
-                      openPanel(
-                        "Shadow investigation",
-                        "Unknown access source 203.0.113.42 was added to the investigation queue.",
-                      )
-                    }
+                    onClick={handleInvestigateShadowAgentClick}
                     className="inline-flex items-center gap-2 text-sm font-semibold text-[#0b57ff]"
                   >
                     Investigate
@@ -926,7 +1065,10 @@ export function InvoiceShieldConsole() {
                   <MoreHorizontal className="h-5 w-5 text-[#53617f]" />
                 </div>
                 <div className="mt-5 overflow-x-auto">
-                  <table className="w-full min-w-[360px] border-separate border-spacing-0 text-sm">
+                  <table
+                    aria-label="Policy approval matrix"
+                    className="w-full min-w-[360px] border-separate border-spacing-0 text-sm"
+                  >
                     <thead>
                       <tr className="text-left text-xs font-semibold text-[#53617f]">
                         <th className="pb-3">Policy</th>
@@ -958,12 +1100,7 @@ export function InvoiceShieldConsole() {
                 <div className="mt-3">
                   <button
                     type="button"
-                    onClick={() =>
-                      openPanel(
-                        "Policy matrix",
-                        "Policy editor opened for Data Access, External Apps, Write / Modify, and Admin Actions.",
-                      )
-                    }
+                    onClick={handleManagePoliciesClick}
                     className="inline-flex items-center gap-2 text-sm font-semibold text-[#0b57ff]"
                   >
                     Manage policies
@@ -1001,12 +1138,7 @@ export function InvoiceShieldConsole() {
                 <div className="mt-4 border-t border-[#dfe7f5] pt-5">
                   <button
                     type="button"
-                    onClick={() =>
-                      openPanel(
-                        "Security insights",
-                        "All insights view opened with unusual access, app connection, and policy update events.",
-                      )
-                    }
+                    onClick={handleViewAllInsightsClick}
                     className="inline-flex items-center gap-2 text-sm font-semibold text-[#0b57ff]"
                   >
                     View all insights
@@ -1022,13 +1154,7 @@ export function InvoiceShieldConsole() {
                     <span className="sr-only">Audit event filter</span>
                     <select
                       value={eventFilter}
-                      onChange={(event) => {
-                        setEventFilter(event.target.value);
-                        openPanel(
-                          "Audit filter",
-                          `Audit trail filtered to ${event.target.value}.`,
-                        );
-                      }}
+                      onChange={handleAuditFilterChange}
                       className="appearance-none bg-transparent pr-7 outline-none"
                     >
                       <option>All Events</option>
@@ -1044,7 +1170,10 @@ export function InvoiceShieldConsole() {
                   </label>
                 </div>
                 <div className="overflow-x-auto">
-                  <table className="w-full min-w-[820px] border-separate border-spacing-0 text-sm">
+                  <table
+                    aria-label="Audit trail events"
+                    className="w-full min-w-[820px] border-separate border-spacing-0 text-sm"
+                  >
                     <thead className="text-left text-xs font-semibold text-[#061044]">
                       <tr>
                         <th className="px-5 py-3">Time</th>
@@ -1092,12 +1221,7 @@ export function InvoiceShieldConsole() {
                 <div className="border-t border-[#dfe7f5] p-5">
                   <button
                     type="button"
-                    onClick={() =>
-                      openPanel(
-                        "Audit trail",
-                        `${visibleAuditRows.length} events are ready for export or SIEM handoff.`,
-                      )
-                    }
+                    onClick={handleViewFullAuditTrailClick}
                     className="inline-flex items-center gap-2 text-sm font-semibold text-[#0b57ff]"
                   >
                     View full audit trail
