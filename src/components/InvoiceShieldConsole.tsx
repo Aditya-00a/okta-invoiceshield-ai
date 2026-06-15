@@ -1,596 +1,1119 @@
 "use client";
 
+import Image from "next/image";
 import {
-  Activity,
+  AlertTriangle,
   ArrowRight,
   BadgeCheck,
   Ban,
-  CircleDollarSign,
-  ExternalLink,
-  FileClock,
+  Bell,
+  Bot,
+  CalendarDays,
+  CheckCircle2,
+  ChevronDown,
+  CircleHelp,
+  ClipboardCheck,
+  Command,
+  Database,
+  EyeOff,
   FileText,
-  Fingerprint,
-  KeyRound,
+  Grid2X2,
+  History,
   LockKeyhole,
-  Power,
-  RefreshCcw,
-  ShieldAlert,
+  MoreHorizontal,
+  Search,
+  Settings,
+  Shield,
   ShieldCheck,
-  Siren,
-  Sparkles,
-  Workflow,
+  UserRound,
+  Users,
+  XCircle,
 } from "lucide-react";
-import { useMemo, useState } from "react";
-import {
-  agentSignals,
-  approvalRules,
-  controlPath,
-  responseActions,
-  scenarios,
-  shadowFindings,
-  type Decision,
-  type InvoiceScenario,
-} from "@/lib/demoData";
+import type { LucideIcon } from "lucide-react";
+import { useState } from "react";
 
-const decisionCopy: Record<
-  Decision,
-  { label: string; detail: string; className: string; bar: string }
-> = {
-  allow: {
-    label: "Allow",
-    detail: "Issue scoped token and prepare payment in hold state.",
-    className: "border-emerald-200 bg-emerald-50 text-emerald-900",
-    bar: "bg-emerald-500",
+type MetricTone = "green" | "red" | "orange" | "blue";
+type AuditStatus = "Success" | "Pending" | "Blocked";
+type AuditRisk = "Low" | "Medium" | "High";
+type MatrixState = "allow" | "review" | "block";
+
+const navItems: Array<{
+  label: string;
+  icon: LucideIcon;
+  badge?: string;
+}> = [
+  { label: "Overview", icon: Grid2X2 },
+  { label: "Agents", icon: UserRound },
+  { label: "Access", icon: Shield },
+  { label: "Policies", icon: ClipboardCheck },
+  { label: "Approvals", icon: CheckCircle2, badge: "3" },
+  { label: "Audit Trail", icon: History },
+  { label: "Settings", icon: Settings },
+];
+
+const metrics: Array<{
+  label: string;
+  value: string;
+  delta: string;
+  helper: string;
+  tone: MetricTone;
+  icon: LucideIcon;
+}> = [
+  {
+    label: "Total Agents",
+    value: "128",
+    delta: "+18%",
+    helper: "vs yesterday",
+    tone: "green",
+    icon: Users,
   },
-  challenge: {
-    label: "Challenge",
-    detail: "Require step-up authentication before tool access.",
-    className: "border-amber-200 bg-amber-50 text-amber-950",
-    bar: "bg-amber-500",
+  {
+    label: "High Risk Actions",
+    value: "24",
+    delta: "+35%",
+    helper: "vs yesterday",
+    tone: "red",
+    icon: ShieldCheck,
   },
-  hold: {
-    label: "Hold",
-    detail: "Block execution and route approval to finance control.",
-    className: "border-orange-200 bg-orange-50 text-orange-950",
-    bar: "bg-orange-500",
+  {
+    label: "Pending Approvals",
+    value: "3",
+    delta: "-25%",
+    helper: "vs yesterday",
+    tone: "orange",
+    icon: UserRound,
   },
-  revoke: {
-    label: "Revoke",
-    detail: "Invalidate access, deactivate agent, and open incident review.",
-    className: "border-red-200 bg-red-50 text-red-900",
-    bar: "bg-red-500",
+  {
+    label: "Shadow Agents",
+    value: "2",
+    delta: "+100%",
+    helper: "vs yesterday",
+    tone: "red",
+    icon: EyeOff,
   },
+];
+
+const identityRows = [
+  ["ID", "agt_7f3a9c2e"],
+  ["Owner", "Research Team"],
+  ["Environment", "Production"],
+  ["Last Seen", "2m ago"],
+];
+
+const auditRows: Array<{
+  time: string;
+  agent: string;
+  event: string;
+  resource: string;
+  status: AuditStatus;
+  risk: AuditRisk;
+  icon: LucideIcon;
+}> = [
+  {
+    time: "May 13, 2025 10:24 AM",
+    agent: "ResearchAgent-01",
+    event: "Accessed Confluence",
+    resource: "Confluence",
+    status: "Success",
+    risk: "Low",
+    icon: Bot,
+  },
+  {
+    time: "May 13, 2025 10:21 AM",
+    agent: "MarketingAgent-02",
+    event: "Requested Salesforce access",
+    resource: "Salesforce",
+    status: "Pending",
+    risk: "Medium",
+    icon: UserRound,
+  },
+  {
+    time: "May 13, 2025 10:18 AM",
+    agent: "DataAgent-03",
+    event: "Accessed Snowflake",
+    resource: "Snowflake",
+    status: "Success",
+    risk: "Low",
+    icon: Database,
+  },
+  {
+    time: "May 13, 2025 10:11 AM",
+    agent: "Unknown Agent",
+    event: "Accessed HR Database",
+    resource: "HR DB",
+    status: "Blocked",
+    risk: "High",
+    icon: EyeOff,
+  },
+  {
+    time: "May 13, 2025 10:07 AM",
+    agent: "ResearchAgent-01",
+    event: "Downloaded report.csv",
+    resource: "S3 Bucket",
+    status: "Success",
+    risk: "Low",
+    icon: FileText,
+  },
+];
+
+const policyRows: Array<{
+  policy: string;
+  strict: MatrixState;
+  standard: MatrixState;
+  permissive: MatrixState;
+}> = [
+  {
+    policy: "Data Access",
+    strict: "allow",
+    standard: "allow",
+    permissive: "review",
+  },
+  {
+    policy: "External Apps",
+    strict: "allow",
+    standard: "review",
+    permissive: "block",
+  },
+  {
+    policy: "Write / Modify",
+    strict: "block",
+    standard: "review",
+    permissive: "block",
+  },
+  {
+    policy: "Admin Actions",
+    strict: "block",
+    standard: "block",
+    permissive: "review",
+  },
+];
+
+const insights: Array<{
+  title: string;
+  body: string;
+  time: string;
+  tone: "blue" | "orange" | "green";
+  icon: LucideIcon;
+}> = [
+  {
+    title: "Unusual access pattern",
+    body: "ResearchAgent-01 accessed Snowflake Warehouse outside business hours.",
+    time: "2m ago",
+    tone: "blue",
+    icon: ShieldCheck,
+  },
+  {
+    title: "New app connection",
+    body: "DataAgent-03 connected to Google Drive for the first time.",
+    time: "12m ago",
+    tone: "orange",
+    icon: LockKeyhole,
+  },
+  {
+    title: "Policy updated",
+    body: "Data Access policy was updated by Security Team.",
+    time: "45m ago",
+    tone: "green",
+    icon: BadgeCheck,
+  },
+];
+
+const toneStyles: Record<MetricTone, string> = {
+  green: "text-[#009f5d]",
+  red: "text-[#e31937]",
+  orange: "text-[#ff7a1a]",
+  blue: "text-[#245cff]",
 };
 
-const signalTone = {
-  good: "border-emerald-200 bg-emerald-50 text-emerald-900",
-  warn: "border-amber-200 bg-amber-50 text-amber-950",
-  danger: "border-red-200 bg-red-50 text-red-900",
-  neutral: "border-[#d8cdb7] bg-[#fffdfa] text-[#151515]",
-};
-
-const actionTone = {
-  allow: "border-emerald-200 bg-emerald-50 text-emerald-900 hover:bg-emerald-100",
-  challenge: "border-amber-200 bg-amber-50 text-amber-950 hover:bg-amber-100",
-  hold: "border-orange-200 bg-orange-50 text-orange-950 hover:bg-orange-100",
-  revoke: "border-red-200 bg-red-50 text-red-900 hover:bg-red-100",
-};
-
-function OktaWordmark() {
+function BrandMark() {
   return (
-    <div className="flex items-center gap-3" aria-label="Okta style demo">
-      <div className="flex h-11 w-11 items-center justify-center rounded-full bg-[#00297a] text-[17px] font-semibold text-white">
-        o
-      </div>
+    <div className="flex items-center gap-3">
       <div>
-        <div className="text-[28px] font-semibold leading-none text-[#151515]">
-          okta
+        <div className="flex items-baseline gap-1 leading-none">
+          <Image
+            src="/brand/okta-logo-carbon.svg"
+            alt="Okta"
+            width={96}
+            height={24}
+            priority
+            className="h-8 w-auto"
+          />
+          <span className="text-[26px] font-medium leading-none text-[#0b57ff]">
+            .asion.ai
+          </span>
         </div>
-        <div className="mt-1 text-xs font-medium text-[#5f5a50]">
-          identity firewall concept
-        </div>
+        <p className="mt-1 text-sm font-semibold text-[#061044]">
+          Agent Identity Firewall
+        </p>
       </div>
     </div>
   );
 }
 
-function decisionFor(scenario: InvoiceScenario, override: Decision | null) {
-  return override ?? scenario.decision;
+function Card({
+  children,
+  className = "",
+}: {
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <section
+      className={`rounded-2xl border border-[#dfe7f5] bg-white shadow-[0_18px_55px_rgba(31,45,92,0.08)] ${className}`}
+    >
+      {children}
+    </section>
+  );
 }
 
-export function InvoiceShieldConsole() {
-  const [activeId, setActiveId] = useState(scenarios[1].id);
-  const [manualDecision, setManualDecision] = useState<Decision | null>(null);
-  const [agentLocked, setAgentLocked] = useState(false);
+function IconBadge({
+  icon: Icon,
+  tone = "blue",
+}: {
+  icon: LucideIcon;
+  tone?: "blue" | "red" | "orange" | "green" | "gray";
+}) {
+  const classes = {
+    blue: "bg-[#eef3ff] text-[#0b57ff]",
+    red: "bg-[#fff0f2] text-[#e31937]",
+    orange: "bg-[#fff4ea] text-[#ff7a1a]",
+    green: "bg-[#eafaf3] text-[#009f5d]",
+    gray: "bg-[#f2f5fb] text-[#061044]",
+  };
 
-  const activeScenario = useMemo(
-    () => scenarios.find((scenario) => scenario.id === activeId) ?? scenarios[0],
-    [activeId],
+  return (
+    <span
+      className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full ${classes[tone]}`}
+    >
+      <Icon className="h-6 w-6" aria-hidden />
+    </span>
   );
-  const decision = agentLocked ? "revoke" : decisionFor(activeScenario, manualDecision);
-  const decisionState = decisionCopy[decision];
+}
 
-  function selectScenario(id: string) {
-    setActiveId(id);
-    setManualDecision(null);
-    setAgentLocked(false);
+function MatrixIcon({ state }: { state: MatrixState }) {
+  if (state === "allow") {
+    return (
+      <CheckCircle2
+        className="mx-auto h-5 w-5 fill-[#13a463] text-white"
+        aria-label="Allowed"
+      />
+    );
+  }
+
+  if (state === "block") {
+    return (
+      <XCircle
+        className="mx-auto h-5 w-5 fill-[#e31937] text-white"
+        aria-label="Blocked"
+      />
+    );
   }
 
   return (
-    <div className="min-h-screen bg-[#f7f2e8] text-[#151515]">
-      <header className="sticky top-0 z-30 border-b border-[#d8cdb7] bg-[#fffdfa]/95 backdrop-blur">
-        <div className="mx-auto flex max-w-[1480px] flex-col gap-4 px-5 py-4 sm:px-6 lg:flex-row lg:items-center lg:justify-between lg:px-8">
-          <OktaWordmark />
-          <div className="flex flex-wrap items-center gap-2 text-sm font-medium text-[#5f5a50]">
-            <span className="rounded-full border border-[#d8cdb7] bg-[#f7f2e8] px-3 py-2">
-              InvoiceShield AI
-            </span>
-            <span className="rounded-full border border-[#c7e9e3] bg-[#dff4ef] px-3 py-2 text-[#006f8f]">
-              Finance approval agent
-            </span>
-            <a
-              href="https://www.okta.com/products/govern-ai-agent-identity/"
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center gap-2 rounded-full border border-[#d8cdb7] bg-white px-3 py-2 text-[#151515] hover:border-[#00297a]"
-            >
-              Okta AI Agents
-              <ExternalLink className="h-4 w-4" aria-hidden />
-            </a>
-          </div>
-        </div>
-      </header>
+    <Ban className="mx-auto h-5 w-5 text-[#ff7a1a]" aria-label="Review" />
+  );
+}
 
-      <main className="mx-auto flex max-w-[1480px] flex-col gap-6 px-5 py-6 sm:px-6 lg:px-8">
-        <section className="grid gap-6 xl:grid-cols-[330px_minmax(0,1fr)_360px]">
-          <aside className="order-2 rounded-[24px] border border-[#d8cdb7] bg-[#fffdfa] p-5 shadow-[0_24px_80px_rgba(21,21,21,0.08)] xl:order-none">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <p className="text-sm font-semibold text-[#006f8f]">
-                  Agent identity card
-                </p>
-                <h1 className="mt-2 text-2xl font-semibold leading-tight">
-                  InvoiceShield AI
-                </h1>
-              </div>
-              <div className="rounded-2xl bg-[#00297a] p-3 text-white">
-                <ShieldCheck className="h-6 w-6" aria-hidden />
-              </div>
-            </div>
+function RiskGauge() {
+  return (
+    <div className="relative mx-auto mt-4 h-[168px] w-[230px]">
+      <svg
+        viewBox="0 0 230 150"
+        role="img"
+        aria-label="Access risk score 87, high risk"
+        className="h-full w-full"
+      >
+        <path
+          d="M 34 126 A 82 82 0 0 1 196 126"
+          fill="none"
+          pathLength="100"
+          stroke="#f7c3ca"
+          strokeLinecap="round"
+          strokeWidth="16"
+        />
+        <path
+          d="M 34 126 A 82 82 0 0 1 196 126"
+          fill="none"
+          pathLength="100"
+          stroke="#e31937"
+          strokeDasharray="87 100"
+          strokeLinecap="round"
+          strokeWidth="16"
+        />
+      </svg>
+      <div className="absolute inset-x-0 top-[62px] text-center">
+        <p className="text-5xl font-semibold leading-none text-[#061044]">87</p>
+        <p className="mt-2 text-lg font-semibold text-[#e31937]">High Risk</p>
+      </div>
+    </div>
+  );
+}
 
-            <div className="mt-5 rounded-2xl border border-[#d8cdb7] bg-[#f7f2e8] p-4">
-              <p className="text-sm font-medium text-[#5f5a50]">
-                Business purpose
-              </p>
-              <p className="mt-2 text-base font-semibold">
-                Review invoices, request least-privilege ERP access, and prepare
-                payment records only after firewall authorization.
-              </p>
-            </div>
+function StatusPill({ status }: { status: AuditStatus }) {
+  const classes: Record<AuditStatus, string> = {
+    Success: "bg-[#eafaf3] text-[#00874e]",
+    Pending: "bg-[#fff4ea] text-[#d65f00]",
+    Blocked: "bg-[#fff0f2] text-[#d71936]",
+  };
 
-            <div className="mt-5 grid gap-3">
-              {agentSignals.map((signal) => {
-                const Icon = signal.icon;
-                return (
-                  <div
-                    key={signal.label}
-                    className={`rounded-2xl border p-4 ${signalTone[signal.tone]}`}
-                  >
-                    <div className="flex items-center justify-between gap-3">
-                      <div>
-                        <p className="text-xs font-semibold">{signal.label}</p>
-                        <p className="mt-1 text-sm font-bold">{signal.value}</p>
-                      </div>
-                      <Icon className="h-5 w-5" aria-hidden />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+  return (
+    <span
+      className={`inline-flex min-w-[78px] justify-center rounded-full px-3 py-1 text-xs font-semibold ${classes[status]}`}
+    >
+      {status}
+    </span>
+  );
+}
 
-            <div className="mt-5 rounded-2xl border border-[#d8cdb7] bg-white p-4">
-              <div className="flex items-center gap-3">
-                <Fingerprint className="h-5 w-5 text-[#00297a]" aria-hidden />
-                <div>
-                  <p className="text-xs font-semibold text-[#5f5a50]">
-                    Human owner
-                  </p>
-                  <p className="text-sm font-bold">Maya Chen, Finance Ops</p>
-                </div>
-              </div>
-              <div className="mt-4 flex items-center gap-3">
-                <KeyRound className="h-5 w-5 text-[#006f8f]" aria-hidden />
-                <div>
-                  <p className="text-xs font-semibold text-[#5f5a50]">
-                    Granted scopes
-                  </p>
-                  <p className="text-sm font-bold">
-                    invoice.read, vendor.read, prepare_payment
-                  </p>
-                </div>
-              </div>
-            </div>
+function RiskDot({ risk }: { risk: AuditRisk }) {
+  const classes: Record<AuditRisk, string> = {
+    Low: "bg-[#13a463]",
+    Medium: "bg-[#ff9f1a]",
+    High: "bg-[#e31937]",
+  };
 
-            <button
-              type="button"
-              onClick={() => setAgentLocked((current) => !current)}
-              className={`mt-5 flex w-full items-center justify-center gap-2 rounded-2xl border px-4 py-3 text-sm font-bold ${
-                agentLocked
-                  ? "border-red-200 bg-red-50 text-red-900"
-                  : "border-[#151515] bg-[#151515] text-white hover:bg-[#00297a]"
-              }`}
-            >
-              <Power className="h-4 w-4" aria-hidden />
-              {agentLocked ? "Kill switch active" : "Trigger kill switch"}
-            </button>
-          </aside>
+  return (
+    <span className="inline-flex items-center gap-2">
+      <span className={`h-2.5 w-2.5 rounded-full ${classes[risk]}`} />
+      {risk}
+    </span>
+  );
+}
 
-          <section className="order-1 rounded-[24px] border border-[#d8cdb7] bg-[#fffdfa] p-5 shadow-[0_24px_80px_rgba(21,21,21,0.08)] xl:order-none">
-            <div className="flex flex-col gap-5 2xl:flex-row 2xl:items-start 2xl:justify-between">
-              <div className="max-w-4xl">
-                <p className="inline-flex items-center gap-2 rounded-full border border-[#c7e9e3] bg-[#dff4ef] px-3 py-2 text-sm font-bold text-[#006f8f]">
-                  <Sparkles className="h-4 w-4" aria-hidden />
-                  Agent Identity Firewall
-                </p>
-                <h2 className="mt-4 text-[42px] font-semibold leading-[1.08] md:text-[48px]">
-                  Govern invoice agents before money moves.
-                </h2>
-                <p className="mt-4 max-w-2xl text-lg leading-8 text-[#5f5a50]">
-                  Every agent action is bound to an owner, delegated user,
-                  purpose, scoped token, policy decision, and audit event. The
-                  model proposes; the firewall decides.
-                </p>
-              </div>
-              <div
-                className={`rounded-3xl border p-5 2xl:max-w-[230px] ${decisionState.className}`}
-              >
-                <p className="text-sm font-semibold">Current decision</p>
-                <div className="mt-2 flex items-center gap-3">
-                  <div
-                    className="text-4xl font-semibold"
-                    data-testid="current-decision-label"
-                  >
-                    {decisionState.label}
-                  </div>
-                  {decision === "revoke" ? (
-                    <Ban className="h-8 w-8" aria-hidden />
-                  ) : (
-                    <ShieldCheck className="h-8 w-8" aria-hidden />
-                  )}
-                </div>
-                <p className="mt-2 max-w-xs text-sm font-medium">
-                  {decisionState.detail}
-                </p>
-              </div>
-            </div>
+export function InvoiceShieldConsole() {
+  const [activeNav, setActiveNav] = useState("Overview");
+  const [approvalState, setApprovalState] = useState("Review");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [timeRange, setTimeRange] = useState("Last 24 hours");
+  const [eventFilter, setEventFilter] = useState("All Events");
+  const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+  const [notice, setNotice] = useState(
+    "Overview selected. Agent posture is stable with 3 approvals requiring review.",
+  );
 
-            <div className="mt-7 grid gap-3 sm:grid-cols-2 2xl:grid-cols-3">
-              {scenarios.map((scenario) => (
+  const visibleAuditRows = auditRows.filter((row) => {
+    if (eventFilter === "All Events") {
+      return true;
+    }
+
+    if (eventFilter === "High Risk") {
+      return row.risk === "High";
+    }
+
+    return row.status === eventFilter;
+  });
+
+  function openPanel(label: string, detail: string) {
+    setNotice(`${label}: ${detail}`);
+  }
+
+  return (
+    <main className="min-h-screen bg-[#f7f9ff] text-[#061044]">
+      <div className="grid min-h-screen lg:grid-cols-[264px_minmax(0,1fr)]">
+        <aside className="hidden border-r border-[#dfe7f5] bg-white px-4 py-6 lg:sticky lg:top-0 lg:block lg:h-screen">
+          <BrandMark />
+
+          <nav className="mt-9 grid gap-2" aria-label="Primary navigation">
+            {navItems.map((item) => {
+              const Icon = item.icon;
+              const active = item.label === activeNav;
+              return (
                 <button
-                  key={scenario.id}
+                  key={item.label}
                   type="button"
-                  onClick={() => selectScenario(scenario.id)}
-                  className={`min-h-[148px] rounded-3xl border p-4 text-left ${
-                    activeScenario.id === scenario.id
-                      ? "border-[#00297a] bg-[#eef6ff] shadow-[0_18px_50px_rgba(0,41,122,0.15)]"
-                      : "border-[#d8cdb7] bg-white hover:border-[#006f8f]"
+                  onClick={() => {
+                    setActiveNav(item.label);
+                    openPanel(
+                      item.label,
+                      `${item.label} workspace is now selected in the console.`,
+                    );
+                  }}
+                  className={`flex h-14 w-full items-center justify-between rounded-xl px-4 text-sm font-semibold ${
+                    active
+                      ? "bg-[#eef3ff] text-[#0b57ff]"
+                      : "text-[#53617f] hover:bg-[#f5f7fc] hover:text-[#061044]"
                   }`}
                 >
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="text-xs font-bold text-[#5f5a50]">
-                      {scenario.invoice}
+                  <span className="flex items-center gap-4">
+                    <Icon className="h-5 w-5" aria-hidden />
+                    {item.label}
+                  </span>
+                  {item.badge ? (
+                    <span className="flex h-7 min-w-7 items-center justify-center rounded-full bg-[#e6ecff] px-2 text-[#0b57ff]">
+                      {item.badge}
                     </span>
-                    <span
-                      className={`rounded-full border px-2.5 py-1 text-xs font-bold ${
-                        decisionCopy[scenario.decision].className
-                      }`}
-                    >
-                      {decisionCopy[scenario.decision].label}
-                    </span>
-                  </div>
-                  <p className="mt-4 text-lg font-bold">{scenario.vendor}</p>
-                  <p className="mt-2 text-2xl font-semibold">{scenario.amount}</p>
-                  <p className="mt-2 text-sm text-[#5f5a50]">
-                    Risk score {scenario.risk}
-                  </p>
+                  ) : null}
                 </button>
-              ))}
+              );
+            })}
+          </nav>
+
+          <div className="mt-8 overflow-hidden rounded-2xl border border-[#dfe7f5] bg-white shadow-[0_18px_55px_rgba(31,45,92,0.08)] lg:absolute lg:bottom-6 lg:left-5 lg:right-5 lg:mt-0">
+            <div className="relative h-24">
+              <Image
+                src="/brand/okta-images/secure-ai-hero.jpg"
+                alt=""
+                fill
+                priority
+                sizes="224px"
+                className="object-cover"
+              />
+              <div className="absolute inset-0 bg-white/40" />
             </div>
-
-            <div className="mt-7 grid gap-5 lg:grid-cols-[minmax(0,1fr)_330px]">
-              <div className="rounded-3xl border border-[#d8cdb7] bg-white p-5">
-                <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-                  <div>
-                    <p className="text-sm font-semibold text-[#006f8f]">
-                      Requested action
-                    </p>
-                    <h3 className="mt-1 text-2xl font-semibold">
-                      {activeScenario.requestedAction}
-                    </h3>
-                  </div>
-                  <div className="rounded-2xl border border-[#d8cdb7] bg-[#f7f2e8] px-4 py-3 text-right">
-                    <p className="text-xs font-semibold text-[#5f5a50]">
-                      Risk score
-                    </p>
-                    <p className="text-3xl font-semibold">{activeScenario.risk}</p>
-                  </div>
-                </div>
-                <p className="mt-4 text-base leading-7 text-[#5f5a50]">
-                  {activeScenario.summary}
-                </p>
-                <div className="mt-5 h-3 overflow-hidden rounded-full bg-[#e9dcc4]">
-                  <div
-                    className={`h-full rounded-full ${decisionState.bar}`}
-                    style={{ width: `${activeScenario.risk}%` }}
-                  />
-                </div>
-
-                <div className="mt-5 grid gap-3 md:grid-cols-2">
-                  {activeScenario.context.map((item) => (
-                    <div
-                      key={item}
-                      className="flex items-start gap-3 rounded-2xl border border-[#d8cdb7] bg-[#fffdfa] p-4"
-                    >
-                      <ShieldAlert
-                        className="mt-0.5 h-5 w-5 text-[#006f8f]"
-                        aria-hidden
-                      />
-                      <p className="text-sm font-semibold">{item}</p>
-                    </div>
-                  ))}
+            <div className="p-4">
+              <div className="flex items-center gap-3">
+                <IconBadge icon={ShieldCheck} tone="blue" />
+                <div>
+                  <p className="text-sm font-bold text-[#0b57ff]">
+                    Trust is earned.
+                  </p>
+                  <p className="text-xs leading-5 text-[#53617f]">
+                    Access is governed. Every action is verified.
+                  </p>
                 </div>
               </div>
+              <a
+                href="https://www.okta.com/products/govern-ai-agent-identity/"
+                target="_blank"
+                rel="noreferrer"
+                className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-[#0b57ff]"
+              >
+                Learn more
+                <ArrowRight className="h-4 w-4" aria-hidden />
+              </a>
+            </div>
+          </div>
+        </aside>
 
-              <div className="rounded-3xl border border-[#d8cdb7] bg-[#151515] p-5 text-white">
-                <p className="text-sm font-semibold text-[#dff4ef]">
-                  Scoped credential
-                </p>
-                <div className="mt-5 space-y-4">
-                  <div>
-                    <p className="text-xs text-[#c9c5b9]">Delegated user</p>
-                    <p className="mt-1 text-sm font-bold">
-                      {activeScenario.delegatedUser}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-[#c9c5b9]">Issued scope</p>
-                    <p className="mt-1 font-mono text-sm">
-                      {activeScenario.scope}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-[#c9c5b9]">Token lifetime</p>
-                    <p className="mt-1 text-sm font-bold">
-                      {activeScenario.tokenTtl}
-                    </p>
-                  </div>
-                </div>
-                <div className="mt-6 rounded-2xl border border-white/20 bg-white/10 p-4">
-                  <div className="flex items-center gap-3">
-                    <LockKeyhole className="h-5 w-5 text-[#19c4ad]" aria-hidden />
-                    <p className="text-sm font-semibold">
-                      No long-lived ERP credential reaches the agent runtime.
-                    </p>
-                  </div>
-                </div>
+        <section className="min-w-0">
+          <header className="sticky top-0 z-30 flex min-h-[82px] flex-col gap-4 border-b border-[#dfe7f5] bg-white/90 px-5 py-4 backdrop-blur xl:flex-row xl:items-center xl:justify-between xl:px-8">
+            <div className="lg:hidden">
+              <BrandMark />
+            </div>
+            <div className="flex flex-wrap items-center gap-3">
+              <span className="inline-flex h-10 items-center gap-2 rounded-full border border-[#dfe7f5] bg-white px-4 text-sm font-semibold text-[#061044]">
+                <span className="h-2.5 w-2.5 rounded-full bg-[#13a463]" />
+                All systems secure
+              </span>
+              <div className="flex h-11 min-w-[280px] flex-1 items-center gap-3 rounded-xl border border-[#dfe7f5] bg-[#fbfcff] px-4 text-[#7a86a3] xl:min-w-[380px]">
+                <Search className="h-5 w-5" aria-hidden />
+                <input
+                  value={searchTerm}
+                  onChange={(event) => {
+                    setSearchTerm(event.target.value);
+                    setNotice(
+                      event.target.value.trim()
+                        ? `Search active: ${event.target.value}`
+                        : "Search cleared. Showing the full agent ecosystem.",
+                    );
+                  }}
+                  aria-label="Search agents, apps, policies"
+                  placeholder="Search agents, apps, policies..."
+                  className="min-w-0 flex-1 bg-transparent text-sm font-medium text-[#061044] outline-none placeholder:text-[#7a86a3]"
+                />
+                <span className="ml-auto inline-flex items-center gap-1 rounded-md border border-[#dfe7f5] bg-white px-2 py-1 text-xs font-semibold">
+                  <Command className="h-3 w-3" aria-hidden /> K
+                </span>
               </div>
             </div>
-          </section>
 
-          <aside className="order-3 rounded-[24px] border border-[#d8cdb7] bg-[#fffdfa] p-5 shadow-[0_24px_80px_rgba(21,21,21,0.08)] xl:order-none">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <p className="text-sm font-semibold text-[#006f8f]">
-                  Response surface
-                </p>
-                <h3 className="mt-1 text-2xl font-semibold">Firewall actions</h3>
-              </div>
-              <Activity className="h-6 w-6 text-[#00297a]" aria-hidden />
-            </div>
-            <div className="mt-5 grid gap-3">
-              {responseActions.map((action) => {
-                const Icon = action.icon;
-                const actionDecision =
-                  action.tone === "challenge" ? "challenge" : action.tone;
-                return (
-                  <button
-                    key={action.label}
-                    type="button"
-                    onClick={() => {
-                      setAgentLocked(false);
-                      setManualDecision(actionDecision);
-                    }}
-                    className={`flex items-center justify-between rounded-2xl border px-4 py-3 text-sm font-bold ${
-                      actionTone[action.tone]
-                    }`}
-                  >
-                    <span className="flex items-center gap-2">
-                      <Icon className="h-4 w-4" aria-hidden />
-                      {action.label}
-                    </span>
-                    <ArrowRight className="h-4 w-4" aria-hidden />
-                  </button>
-                );
-              })}
+            <div className="flex items-center justify-between gap-4 xl:justify-end">
               <button
                 type="button"
-                onClick={() => {
-                  setManualDecision(null);
-                  setAgentLocked(false);
-                }}
-                className="flex items-center justify-center gap-2 rounded-2xl border border-[#d8cdb7] bg-white px-4 py-3 text-sm font-bold hover:border-[#00297a]"
+                onClick={() =>
+                  openPanel(
+                    "Notifications",
+                    "3 pending approvals and 2 shadow agent alerts are waiting.",
+                  )
+                }
+                className="rounded-full p-2 text-[#53617f] hover:bg-[#eef3ff] hover:text-[#0b57ff]"
               >
-                <RefreshCcw className="h-4 w-4" aria-hidden />
-                Reset policy decision
+                <Bell className="h-5 w-5" aria-label="Notifications" />
               </button>
-            </div>
-
-            <div className="mt-6 rounded-3xl border border-[#d8cdb7] bg-[#f7f2e8] p-5">
-              <p className="text-sm font-semibold text-[#006f8f]">
-                Policy reasons
-              </p>
-              <div className="mt-4 space-y-3">
-                {activeScenario.policyReasons.map((reason) => (
-                  <div key={reason} className="flex items-start gap-3">
-                    <BadgeCheck
-                      className="mt-0.5 h-4 w-4 text-[#19c4ad]"
-                      aria-hidden
-                    />
-                    <p className="text-sm font-medium text-[#34302a]">
-                      {reason}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </aside>
-        </section>
-
-        <section className="grid gap-4 md:grid-cols-4">
-          {controlPath.map((item) => {
-            const Icon = item.icon;
-            return (
-              <div
-                key={item.title}
-                className="rounded-3xl border border-[#d8cdb7] bg-[#fffdfa] p-5"
+              <button
+                type="button"
+                onClick={() =>
+                  openPanel(
+                    "Help",
+                    "Review approvals, investigate shadow agents, and export the audit trail from this console.",
+                  )
+                }
+                className="rounded-full p-2 text-[#53617f] hover:bg-[#eef3ff] hover:text-[#0b57ff]"
               >
-                <Icon className="h-6 w-6 text-[#00297a]" aria-hidden />
-                <h3 className="mt-4 text-lg font-semibold">{item.title}</h3>
-                <p className="mt-2 text-sm leading-6 text-[#5f5a50]">
-                  {item.detail}
-                </p>
-              </div>
-            );
-          })}
-        </section>
-
-        <section className="grid gap-6 xl:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)]">
-          <div className="rounded-[24px] border border-[#d8cdb7] bg-[#fffdfa] p-5 shadow-[0_24px_80px_rgba(21,21,21,0.06)]">
-            <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-              <div>
-                <p className="text-sm font-semibold text-[#006f8f]">
-                  Approval matrix
-                </p>
-                <h2 className="mt-1 text-2xl font-semibold">
-                  Business-readable runtime policy
-                </h2>
-              </div>
-              <Workflow className="h-7 w-7 text-[#00297a]" aria-hidden />
-            </div>
-            <div className="mt-5 overflow-hidden rounded-3xl border border-[#d8cdb7]">
-              <div className="grid grid-cols-[1.25fr_0.8fr_0.9fr_0.9fr] bg-[#151515] text-sm font-bold text-white">
-                <div className="p-4">Condition</div>
-                <div className="p-4">Firewall action</div>
-                <div className="p-4">Approver</div>
-                <div className="p-4">Outcome</div>
-              </div>
-              {approvalRules.map((rule) => (
-                <div
-                  key={rule.rule}
-                  className="grid grid-cols-1 border-t border-[#d8cdb7] bg-white text-sm md:grid-cols-[1.25fr_0.8fr_0.9fr_0.9fr]"
+                <CircleHelp className="h-5 w-5" aria-label="Help" />
+              </button>
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setProfileMenuOpen((current) => !current);
+                    openPanel(
+                      "Profile",
+                      profileMenuOpen
+                        ? "Profile menu closed."
+                        : "Profile menu opened for Alex Smith.",
+                    );
+                  }}
+                  className="flex items-center gap-3"
                 >
-                  <div className="p-4 font-semibold">{rule.rule}</div>
-                  <div className="p-4 text-[#00297a]">{rule.action}</div>
-                  <div className="p-4 text-[#5f5a50]">{rule.approver}</div>
-                  <div className="p-4 text-[#5f5a50]">{rule.outcome}</div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="rounded-[24px] border border-[#d8cdb7] bg-[#fffdfa] p-5 shadow-[0_24px_80px_rgba(21,21,21,0.06)]">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <p className="text-sm font-semibold text-[#006f8f]">
-                  Shadow detection
-                </p>
-                <h2 className="mt-1 text-2xl font-semibold">
-                  Unknown agent access
-                </h2>
-              </div>
-              <Siren className="h-7 w-7 text-[#b42318]" aria-hidden />
-            </div>
-            <div className="mt-5 grid gap-3">
-              {shadowFindings.map((finding) => (
-                <div
-                  key={finding.agent}
-                  className="rounded-3xl border border-[#d8cdb7] bg-white p-4"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="font-mono text-sm font-bold">
-                        {finding.agent}
-                      </p>
-                      <p className="mt-1 text-sm text-[#5f5a50]">
-                        {finding.owner}
-                      </p>
+                  <span className="flex h-11 w-11 items-center justify-center rounded-full bg-[#102a83] text-sm font-bold text-white">
+                    AS
+                  </span>
+                  <ChevronDown className="h-4 w-4 text-[#53617f]" aria-hidden />
+                </button>
+                {profileMenuOpen ? (
+                  <div className="absolute right-0 top-14 z-40 w-56 rounded-xl border border-[#dfe7f5] bg-white p-3 text-sm font-semibold shadow-[0_18px_55px_rgba(31,45,92,0.14)]">
+                    <p className="text-[#061044]">Alex Smith</p>
+                    <p className="mt-1 text-xs text-[#7a86a3]">
+                      Security operations lead
+                    </p>
+                    <div className="mt-3 rounded-lg bg-[#f7f9ff] px-3 py-2 text-xs text-[#53617f]">
+                      Session protected by Okta.
                     </div>
-                    <span
-                      className={`rounded-full border px-3 py-1 text-xs font-bold ${
-                        finding.risk === "Critical"
-                          ? "border-red-200 bg-red-50 text-red-900"
-                          : finding.risk === "Review"
-                            ? "border-amber-200 bg-amber-50 text-amber-950"
-                            : "border-emerald-200 bg-emerald-50 text-emerald-900"
-                      }`}
-                    >
-                      {finding.risk}
-                    </span>
                   </div>
-                  <p className="mt-3 font-mono text-xs text-[#34302a]">
-                    {finding.access}
+                ) : null}
+              </div>
+            </div>
+          </header>
+
+          <div className="px-5 py-7 xl:px-8">
+            <section className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+              <div>
+                <h1 className="text-2xl font-semibold text-[#061044]">
+                  Welcome back, Alex
+                </h1>
+                <p className="mt-2 text-sm font-medium text-[#53617f]">
+                  Here&apos;s what&apos;s happening across your agent ecosystem.
+                </p>
+              </div>
+              <div className="flex flex-wrap items-center gap-3 text-sm font-semibold text-[#061044]">
+                <span className="inline-flex h-11 items-center gap-2">
+                  <CalendarDays className="h-5 w-5 text-[#53617f]" aria-hidden />
+                  May 13, 2025
+                </span>
+                <label className="relative inline-flex h-11 items-center rounded-xl border border-[#dfe7f5] bg-white px-4 shadow-sm">
+                  <span className="sr-only">Time range</span>
+                  <select
+                    value={timeRange}
+                    onChange={(event) => {
+                      setTimeRange(event.target.value);
+                      openPanel(
+                        "Time range",
+                        `Dashboard metrics filtered to ${event.target.value}.`,
+                      );
+                    }}
+                    className="appearance-none bg-transparent pr-7 text-sm font-semibold outline-none"
+                  >
+                    <option>Last 24 hours</option>
+                    <option>Last 7 days</option>
+                    <option>Last 30 days</option>
+                  </select>
+                  <ChevronDown
+                    className="pointer-events-none absolute right-3 h-4 w-4"
+                    aria-hidden
+                  />
+                </label>
+              </div>
+            </section>
+
+            <section className="mt-5 rounded-2xl border border-[#dfe7f5] bg-white px-5 py-4 shadow-[0_18px_55px_rgba(31,45,92,0.06)]">
+              <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                <div>
+                  <p className="text-xs font-semibold uppercase text-[#7a86a3]">
+                    Active console action
+                  </p>
+                  <p className="mt-1 text-sm font-semibold text-[#061044]">
+                    {notice}
                   </p>
                 </div>
-              ))}
-            </div>
-          </div>
-        </section>
+                <span className="inline-flex h-9 items-center rounded-full bg-[#eef3ff] px-4 text-sm font-semibold text-[#0b57ff]">
+                  {activeNav}
+                </span>
+              </div>
+            </section>
 
-        <section className="rounded-[24px] border border-[#d8cdb7] bg-[#151515] p-5 text-white shadow-[0_24px_80px_rgba(21,21,21,0.12)]">
-          <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-            <div>
-              <p className="text-sm font-semibold text-[#19c4ad]">
-                Audit timeline
-              </p>
-              <h2 className="mt-1 text-2xl font-semibold">
-                Exportable evidence for SIEM, auditors, and incident response
-              </h2>
-            </div>
-            <div className="flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold">
-              <FileText className="h-4 w-4" aria-hidden />
-              correlation_id: aif-{activeScenario.invoice.toLowerCase()}
-            </div>
-          </div>
-          <div className="mt-6 grid gap-3 md:grid-cols-4">
-            {activeScenario.timeline.map((event, index) => (
-              <div
-                key={event}
-                className="min-h-[138px] rounded-3xl border border-white/15 bg-white/10 p-4"
-              >
+            <section className="mt-6 grid gap-5 md:grid-cols-2 xl:grid-cols-4">
+              {metrics.map((metric) => {
+                const Icon = metric.icon;
+                const tone =
+                  metric.tone === "green"
+                    ? "green"
+                    : metric.tone === "orange"
+                      ? "orange"
+                      : metric.tone === "red"
+                        ? "red"
+                        : "blue";
+                return (
+                  <Card key={metric.label} className="p-5">
+                    <div className="flex items-center gap-5">
+                      <IconBadge icon={Icon} tone={tone} />
+                      <div>
+                        <p className="text-sm font-semibold text-[#293552]">
+                          {metric.label}
+                        </p>
+                        <p className="mt-2 text-2xl font-semibold">
+                          {metric.value}
+                        </p>
+                        <p className="mt-2 text-xs font-semibold">
+                          <span className={toneStyles[metric.tone]}>
+                            {metric.delta}
+                          </span>
+                          <span className="ml-3 text-[#53617f]">
+                            {metric.helper}
+                          </span>
+                        </p>
+                      </div>
+                    </div>
+                  </Card>
+                );
+              })}
+            </section>
+
+            <section className="mt-6 grid gap-5 xl:grid-cols-[minmax(0,1.2fr)_minmax(360px,0.82fr)_minmax(330px,0.8fr)]">
+              <Card className="p-5">
+                <div className="flex items-start justify-between gap-4">
+                  <h2 className="text-lg font-semibold">Agent Identity Card</h2>
+                  <div className="flex items-center gap-3">
+                    <span className="inline-flex items-center gap-2 rounded-full bg-[#eafaf3] px-3 py-1 text-xs font-semibold text-[#00874e]">
+                      <CheckCircle2 className="h-3.5 w-3.5" aria-hidden />
+                      Trusted Agent
+                    </span>
+                    <MoreHorizontal className="h-5 w-5 text-[#53617f]" />
+                  </div>
+                </div>
+
+                <div className="mt-7 grid gap-6 md:grid-cols-[160px_minmax(0,1fr)]">
+                  <div className="relative mx-auto h-40 w-40 overflow-hidden rounded-full bg-[#eef3ff]">
+                    <Image
+                      src="/brand/okta-images/home-hero-alt.jpg"
+                      alt=""
+                      fill
+                      priority
+                      sizes="160px"
+                      className="object-cover opacity-85"
+                    />
+                    <div className="absolute inset-0 bg-white/25" />
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="flex h-24 w-24 items-center justify-center rounded-full bg-[#061044] shadow-[0_20px_50px_rgba(11,87,255,0.28)]">
+                        <Bot className="h-14 w-14 text-[#8fb2ff]" aria-hidden />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-3">
+                      <h3 className="text-xl font-semibold">
+                        ResearchAgent-01
+                      </h3>
+                      <span className="inline-flex items-center gap-1 rounded-md bg-[#e6ecff] px-2 py-1 text-xs font-semibold text-[#0b57ff]">
+                        <BadgeCheck className="h-3.5 w-3.5" aria-hidden />
+                        Verified
+                      </span>
+                    </div>
+
+                    <dl className="mt-5 grid gap-3 text-sm">
+                      {identityRows.map(([label, value]) => (
+                        <div key={label} className="grid grid-cols-[92px_1fr]">
+                          <dt className="font-medium text-[#53617f]">{label}</dt>
+                          <dd className="font-semibold text-[#293552]">
+                            {value}
+                          </dd>
+                        </div>
+                      ))}
+                    </dl>
+                  </div>
+                </div>
+
+                <div className="mt-7 flex flex-wrap justify-center gap-3">
+                  {["LLM", "Data Access", "RAG", "Automation"].map((tag) => (
+                    <span
+                      key={tag}
+                      className="rounded-full border border-[#dfe7f5] bg-[#f7f9ff] px-5 py-2 text-xs font-semibold text-[#53617f]"
+                    >
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+
+                <div className="mt-6 border-t border-[#dfe7f5] pt-4">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      openPanel(
+                        "Agent profile",
+                        "ResearchAgent-01 profile loaded with owner, scopes, and certification state.",
+                      )
+                    }
+                    className="inline-flex items-center gap-2 text-sm font-semibold text-[#0b57ff]"
+                  >
+                    View full profile
+                    <ArrowRight className="h-4 w-4" aria-hidden />
+                  </button>
+                </div>
+              </Card>
+
+              <Card className="p-5">
                 <div className="flex items-center justify-between">
-                  <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#19c4ad] text-sm font-bold text-[#151515]">
-                    {index + 1}
+                  <h2 className="text-lg font-semibold">Access Risk Score</h2>
+                  <MoreHorizontal className="h-5 w-5 text-[#53617f]" />
+                </div>
+                <RiskGauge />
+                <p className="mx-auto mt-2 max-w-[220px] text-center text-sm font-medium leading-6 text-[#53617f]">
+                  Unusual behavior detected across 3 systems
+                </p>
+                <div className="mt-7 border-t border-[#dfe7f5] pt-4">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      openPanel(
+                        "Risk details",
+                        "High risk is driven by after-hours Snowflake access, new app connection, and permissive policy mode.",
+                      )
+                    }
+                    className="inline-flex items-center gap-2 text-sm font-semibold text-[#0b57ff]"
+                  >
+                    View risk details
+                    <ArrowRight className="h-4 w-4" aria-hidden />
+                  </button>
+                </div>
+              </Card>
+
+              <Card className="p-5">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-lg font-semibold">Pending Approval</h2>
+                  <MoreHorizontal className="h-5 w-5 text-[#53617f]" />
+                </div>
+
+                <div className="mt-7 flex items-start gap-4">
+                  <IconBadge icon={UserRound} tone="blue" />
+                  <div>
+                    <h3 className="text-lg font-semibold">MarketingAgent-02</h3>
+                    <p className="mt-1 text-sm font-medium text-[#53617f]">
+                      is requesting access to
+                    </p>
+                    <p className="mt-2 flex items-center gap-2 text-sm font-semibold">
+                      <Database className="h-4 w-4 text-[#0b57ff]" aria-hidden />
+                      Salesforce Production
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-6 grid gap-4 text-sm">
+                  <div>
+                    <p className="font-medium text-[#7a86a3]">Reason</p>
+                    <p className="mt-1 font-semibold">
+                      Lead enrichment workflow
+                    </p>
+                  </div>
+                  <div>
+                    <p className="font-medium text-[#7a86a3]">Requested by</p>
+                    <p className="mt-1 font-semibold">Marketing Team</p>
+                  </div>
+                  <div>
+                    <p className="font-medium text-[#7a86a3]">Decision</p>
+                    <p className="mt-1 font-semibold text-[#0b57ff]">
+                      {approvalState}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-6 grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setApprovalState("Denied");
+                      openPanel(
+                        "Approval denied",
+                        "MarketingAgent-02 access request was denied and logged.",
+                      );
+                    }}
+                    className="h-11 rounded-lg border border-[#b8c4dc] bg-white text-sm font-semibold text-[#061044] hover:border-[#e31937] hover:text-[#e31937]"
+                  >
+                    Deny
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setApprovalState("Under Review");
+                      openPanel(
+                        "Approval review",
+                        "MarketingAgent-02 has been routed for access review.",
+                      );
+                    }}
+                    className="h-11 rounded-lg bg-[#0b57ff] text-sm font-semibold text-white shadow-[0_12px_24px_rgba(11,87,255,0.28)] hover:bg-[#003fcc]"
+                  >
+                    Review
+                  </button>
+                </div>
+              </Card>
+            </section>
+
+            <section className="mt-6 grid gap-5 xl:grid-cols-[minmax(0,1.2fr)_minmax(360px,0.82fr)_minmax(330px,0.8fr)]">
+              <Card className="p-5">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex items-center gap-4">
+                    <IconBadge icon={AlertTriangle} tone="red" />
+                    <div>
+                      <h2 className="text-lg font-semibold">
+                        Shadow Agent Detected
+                      </h2>
+                      <p className="mt-1 text-sm font-medium text-[#53617f]">
+                        Unknown access into sensitive data.
+                      </p>
+                    </div>
+                  </div>
+                  <span className="inline-flex items-center gap-2 rounded-md bg-[#fff0f2] px-3 py-1 text-xs font-semibold text-[#e31937]">
+                    <AlertTriangle className="h-3.5 w-3.5" aria-hidden />
+                    High Risk
                   </span>
-                  {index === activeScenario.timeline.length - 1 ? (
-                    <FileClock className="h-5 w-5 text-[#19c4ad]" aria-hidden />
-                  ) : (
-                    <CircleDollarSign
-                      className="h-5 w-5 text-[#dff4ef]"
+                </div>
+
+                <div className="mt-5 grid gap-5 md:grid-cols-[136px_minmax(0,1fr)]">
+                  <div className="relative mx-auto flex h-32 w-32 items-center justify-center overflow-hidden rounded-full bg-[#fff0f2]">
+                    <Image
+                      src="/brand/okta-images/secure-ai-hero.jpg"
+                      alt=""
+                      fill
+                      priority
+                      sizes="128px"
+                      className="object-cover opacity-60"
+                    />
+                    <EyeOff className="relative h-12 w-12 text-[#061044]" />
+                  </div>
+
+                  <dl className="grid content-center gap-3 text-sm">
+                    <div className="grid grid-cols-[108px_1fr]">
+                      <dt className="font-medium text-[#53617f]">First Seen</dt>
+                      <dd className="font-semibold">5m ago</dd>
+                    </div>
+                    <div className="grid grid-cols-[108px_1fr]">
+                      <dt className="font-medium text-[#53617f]">Source IP</dt>
+                      <dd className="font-semibold">203.0.113.42</dd>
+                    </div>
+                    <div className="grid grid-cols-[108px_1fr]">
+                      <dt className="font-medium text-[#53617f]">Risk Level</dt>
+                      <dd>
+                        <span className="rounded-full bg-[#fff0f2] px-5 py-1 text-sm font-semibold text-[#e31937]">
+                          High
+                        </span>
+                      </dd>
+                    </div>
+                  </dl>
+                </div>
+
+                <div className="mt-5 border-t border-[#dfe7f5] pt-4">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      openPanel(
+                        "Shadow investigation",
+                        "Unknown access source 203.0.113.42 was added to the investigation queue.",
+                      )
+                    }
+                    className="inline-flex items-center gap-2 text-sm font-semibold text-[#0b57ff]"
+                  >
+                    Investigate
+                    <ArrowRight className="h-4 w-4" aria-hidden />
+                  </button>
+                </div>
+              </Card>
+
+              <Card className="p-5">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-lg font-semibold">
+                    Policy & Approval Matrix
+                  </h2>
+                  <MoreHorizontal className="h-5 w-5 text-[#53617f]" />
+                </div>
+                <div className="mt-5 overflow-x-auto">
+                  <table className="w-full min-w-[360px] border-separate border-spacing-0 text-sm">
+                    <thead>
+                      <tr className="text-left text-xs font-semibold text-[#53617f]">
+                        <th className="pb-3">Policy</th>
+                        <th className="pb-3 text-center">Strict</th>
+                        <th className="pb-3 text-center">Standard</th>
+                        <th className="pb-3 text-center">Permissive</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {policyRows.map((row) => (
+                        <tr key={row.policy} className="border-t border-[#dfe7f5]">
+                          <td className="border-t border-[#dfe7f5] py-3 font-semibold">
+                            {row.policy}
+                          </td>
+                          <td className="border-t border-[#dfe7f5] py-3 text-center">
+                            <MatrixIcon state={row.strict} />
+                          </td>
+                          <td className="border-t border-[#dfe7f5] py-3 text-center">
+                            <MatrixIcon state={row.standard} />
+                          </td>
+                          <td className="border-t border-[#dfe7f5] py-3 text-center">
+                            <MatrixIcon state={row.permissive} />
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <div className="mt-3">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      openPanel(
+                        "Policy matrix",
+                        "Policy editor opened for Data Access, External Apps, Write / Modify, and Admin Actions.",
+                      )
+                    }
+                    className="inline-flex items-center gap-2 text-sm font-semibold text-[#0b57ff]"
+                  >
+                    Manage policies
+                    <ArrowRight className="h-4 w-4" aria-hidden />
+                  </button>
+                </div>
+              </Card>
+
+              <Card className="row-span-2 p-5">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-lg font-semibold">Security Insights</h2>
+                  <MoreHorizontal className="h-5 w-5 text-[#53617f]" />
+                </div>
+                <div className="mt-5 divide-y divide-[#dfe7f5]">
+                  {insights.map((insight) => {
+                    const Icon = insight.icon;
+                    return (
+                      <article key={insight.title} className="flex gap-4 py-5 first:pt-0">
+                        <IconBadge icon={Icon} tone={insight.tone} />
+                        <div>
+                          <h3 className="text-sm font-semibold">
+                            {insight.title}
+                          </h3>
+                          <p className="mt-2 text-sm font-medium leading-6 text-[#293552]">
+                            {insight.body}
+                          </p>
+                          <p className="mt-2 text-xs font-medium text-[#7a86a3]">
+                            {insight.time}
+                          </p>
+                        </div>
+                      </article>
+                    );
+                  })}
+                </div>
+                <div className="mt-4 border-t border-[#dfe7f5] pt-5">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      openPanel(
+                        "Security insights",
+                        "All insights view opened with unusual access, app connection, and policy update events.",
+                      )
+                    }
+                    className="inline-flex items-center gap-2 text-sm font-semibold text-[#0b57ff]"
+                  >
+                    View all insights
+                    <ArrowRight className="h-4 w-4" aria-hidden />
+                  </button>
+                </div>
+              </Card>
+
+              <Card className="xl:col-span-2">
+                <div className="flex flex-col gap-3 border-b border-[#dfe7f5] p-5 md:flex-row md:items-center md:justify-between">
+                  <h2 className="text-lg font-semibold">Audit Trail</h2>
+                  <label className="relative inline-flex h-9 items-center rounded-lg border border-[#dfe7f5] bg-white px-3 text-sm font-semibold text-[#53617f]">
+                    <span className="sr-only">Audit event filter</span>
+                    <select
+                      value={eventFilter}
+                      onChange={(event) => {
+                        setEventFilter(event.target.value);
+                        openPanel(
+                          "Audit filter",
+                          `Audit trail filtered to ${event.target.value}.`,
+                        );
+                      }}
+                      className="appearance-none bg-transparent pr-7 outline-none"
+                    >
+                      <option>All Events</option>
+                      <option>Success</option>
+                      <option>Pending</option>
+                      <option>Blocked</option>
+                      <option>High Risk</option>
+                    </select>
+                    <ChevronDown
+                      className="pointer-events-none absolute right-2 h-4 w-4"
                       aria-hidden
                     />
-                  )}
+                  </label>
                 </div>
-                <p className="mt-4 text-sm font-semibold leading-6">{event}</p>
-              </div>
-            ))}
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[820px] border-separate border-spacing-0 text-sm">
+                    <thead className="text-left text-xs font-semibold text-[#061044]">
+                      <tr>
+                        <th className="px-5 py-3">Time</th>
+                        <th className="px-5 py-3">Agent</th>
+                        <th className="px-5 py-3">Event</th>
+                        <th className="px-5 py-3">Resource</th>
+                        <th className="px-5 py-3">Status</th>
+                        <th className="px-5 py-3">Risk</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {visibleAuditRows.map((row) => {
+                        const Icon = row.icon;
+                        return (
+                          <tr key={`${row.time}-${row.event}`}>
+                            <td className="border-t border-[#dfe7f5] px-5 py-3 font-medium text-[#293552]">
+                              {row.time}
+                            </td>
+                            <td className="border-t border-[#dfe7f5] px-5 py-3">
+                              <span className="inline-flex items-center gap-2 font-semibold">
+                                <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#eef3ff] text-[#0b57ff]">
+                                  <Icon className="h-4 w-4" aria-hidden />
+                                </span>
+                                {row.agent}
+                              </span>
+                            </td>
+                            <td className="border-t border-[#dfe7f5] px-5 py-3 font-medium text-[#293552]">
+                              {row.event}
+                            </td>
+                            <td className="border-t border-[#dfe7f5] px-5 py-3 font-semibold text-[#293552]">
+                              {row.resource}
+                            </td>
+                            <td className="border-t border-[#dfe7f5] px-5 py-3">
+                              <StatusPill status={row.status} />
+                            </td>
+                            <td className="border-t border-[#dfe7f5] px-5 py-3 font-medium text-[#293552]">
+                              <RiskDot risk={row.risk} />
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+                <div className="border-t border-[#dfe7f5] p-5">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      openPanel(
+                        "Audit trail",
+                        `${visibleAuditRows.length} events are ready for export or SIEM handoff.`,
+                      )
+                    }
+                    className="inline-flex items-center gap-2 text-sm font-semibold text-[#0b57ff]"
+                  >
+                    View full audit trail
+                    <ArrowRight className="h-4 w-4" aria-hidden />
+                  </button>
+                </div>
+              </Card>
+            </section>
+
+            <footer className="pb-3 pt-6 text-xs font-medium text-[#7a86a3]">
+              Unofficial Asion concept demo inspired by Okta-style AI agent
+              identity governance. Not affiliated with Okta.
+            </footer>
           </div>
         </section>
-
-        <footer className="pb-6 text-sm text-[#5f5a50]">
-          Unofficial Asion concept demo inspired by Okta-style AI agent identity
-          governance. Not affiliated with Okta.
-        </footer>
-      </main>
-    </div>
+      </div>
+    </main>
   );
 }

@@ -1,31 +1,72 @@
 @import "tailwindcss";
 
+@font-face {
+  font-family: "Aeonik";
+  src: url("/brand/fonts/Aeonik-Regular.woff2") format("woff2");
+  font-display: swap;
+  font-style: normal;
+  font-weight: 400;
+}
+
+@font-face {
+  font-family: "Aeonik";
+  src: url("/brand/fonts/Aeonik-Medium.woff2") format("woff2");
+  font-display: swap;
+  font-style: normal;
+  font-weight: 500;
+}
+
+@font-face {
+  font-family: "Aeonik Mono";
+  src: url("/brand/fonts/AeonikMono-Regular.woff2") format("woff2");
+  font-display: swap;
+  font-style: normal;
+  font-weight: 400;
+}
+
+@font-face {
+  font-family: "Aeonik Mono";
+  src: url("/brand/fonts/AeonikMono-Medium.woff2") format("woff2");
+  font-display: swap;
+  font-style: normal;
+  font-weight: 500;
+}
+
+@font-face {
+  font-family: "Aeonik Mono";
+  src: url("/brand/fonts/AeonikMono-Bold.woff2") format("woff2");
+  font-display: swap;
+  font-style: normal;
+  font-weight: 700;
+}
+
 :root {
-  --background: #f7f2e8;
-  --foreground: #151515;
-  --okta-carbon: #151515;
-  --okta-cobalt: #00297a;
-  --okta-ocean: #006f8f;
-  --okta-sand: #e9dcc4;
-  --okta-cream: #f7f2e8;
+  --background: #f6f1e7;
+  --foreground: #191919;
+  --okta-carbon: #191919;
+  --okta-blue: #3f59e4;
+  --okta-blue-active: #1a31a9;
+  --okta-teal: #4cb7a3;
+  --okta-teal-light: #b1e4de;
+  --okta-sand: #e8dcc7;
+  --okta-beige: #f6f1e7;
   --okta-snow: #fffdfa;
-  --okta-seafoam: #dff4ef;
-  --okta-turquoise: #19c4ad;
-  --okta-warning: #b76e00;
-  --okta-danger: #b42318;
+  --okta-gray: #6b665f;
+  --okta-danger: #da372c;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: "Geist", "Geist Fallback", ui-sans-serif, system-ui, sans-serif;
-  --font-mono: "Geist Mono", "Geist Mono Fallback", ui-monospace, monospace;
+  --font-sans: "Aeonik", "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "Aeonik Mono", ui-monospace, SFMono-Regular, monospace;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
 }
 
 button,
@@ -40,10 +81,10 @@ a {
 
 button:focus-visible,
 a:focus-visible {
-  outline: 3px solid rgba(25, 196, 173, 0.45);
+  outline: 4px solid rgba(63, 89, 228, 0.34);
   outline-offset: 3px;
 }
 
 ::selection {
-  background: rgba(25, 196, 173, 0.32);
+  background: rgba(177, 228, 222, 0.75);
 }
